@@ -29,7 +29,7 @@ while cap.isOpened():
 
     # Reshpae image (input: float32 256x256x3)    
     img = frame.copy()
-    img = tf.image.resize_with_pad(np.expand_dims(img, axis=0), 192, 192)   
+    img = tf.image.resize_with_pad(np.expand_dims(img, axis=0), 256, 256)   
     input_image = tf.cast(img, dtype=tf.uint8)
 
 
