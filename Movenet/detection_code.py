@@ -3,7 +3,7 @@ interpreter = tf.lite.Interpreter(model_path='1.tflite')
 interpreter.allocate_tensors()
 
 # 2. Make Detections
-cap = cv2.VideoCapture('dancingman.mp4')  # 0: rel-time web cam 
+cap = cv2.VideoCapture('glassesman.mp4')  # 0: rel-time web cam 
 
 original_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
