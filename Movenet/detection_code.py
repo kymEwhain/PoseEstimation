@@ -2,8 +2,11 @@
 interpreter = tf.lite.Interpreter(model_path='1.tflite')
 interpreter.allocate_tensors()
 
+
+vedio_path = 'dancingman.mp4'
+
 # 2. Make Detections
-cap = cv2.VideoCapture('glassesman.mp4')  # 0: rel-time web cam 
+cap = cv2.VideoCapture(vedio_path)  # 0: rel-time web cam 
 
 original_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -27,7 +30,9 @@ while cap.isOpened():
     if not ret:  # 영상 끝에 도달했을 때
         break
 
-    # Reshpae image (input: float32 256x256x3)    
+    frame = cv2.resize(frame, (640, 480))
+    
+    # Reshape image (input: float32 256x256x3)    
     img = frame.copy()
     img = tf.image.resize_with_pad(np.expand_dims(img, axis=0), 256, 256)   
     input_image = tf.cast(img, dtype=tf.uint8)
@@ -52,12 +57,14 @@ while cap.isOpened():
     interpreter.set_tensor(input_details[0]['index'], np.array(input_image))   
     interpreter.invoke()   # prediction
     Keypoints_with_scores = interpreter.get_tensor(output_details[0]['index'])  
-    print(Keypoints_with_scores)
 
+
+    # Render keypoints 
+    loop_through_people(frame, tf.squeeze(Keypoints_with_scores), EDGES, 0.3)
 
   
     # frame resize
-    frame_resized = cv2.resize(frame, (new_width, new_height))
+    frame = cv2.resize(frame, (new_width, new_height))
 
     # 윈도우 크기 맞추기 위해 패딩 추가
     top = (window_height - new_height) // 2
@@ -66,16 +73,9 @@ while cap.isOpened():
     right = window_width - new_width - left
 
     # 패딩 추가
-    frame_padded = cv2.copyMakeBorder(frame_resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+    frame_padded = cv2.copyMakeBorder(frame, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
 
-
-    
-    # Rendering
-    draw_connections(frame_padded, Keypoints_with_scores, EDGES, 0.4)
-    draw_keypoints(frame_padded, Keypoints_with_scores, 0.4)
-
-
-    cv2.imshow('MoveNet Lightning', frame_padded)
+    cv2.imshow('MoveNet Lightning', frame)
 
     if cv2.waitKey(10) & 0xFF==ord('q'):
         break
@@ -83,12 +83,20 @@ while cap.isOpened():
 cap.release()
 cv2.destroyAllWindows()
 
-# 3. Draw Keypoints function
-def draw_keypoints(frame, keypoints, confidence_threshold):  # keypoints: (1x6x56)
+# 3. Function to loop through each person detected and render
+def loop_through_people(frame, keypoints_with_scores, edges, confidence_threshold):
+    for person in keypoints_with_scores:
+        draw_connections(frame, person, edges, confidence_threshold)
+        draw_keypoints(frame, person, confidence_threshold)
+
+
+
+# 4. Draw Keypoints function
+def draw_keypoints(frame, keypoints, confidence_threshold):  # keypoints: (1x56)
     y, x, c = frame.shape
     shaped = []
     for i in range(0,55-5+1,3):
-        shaped.append(np.array([keypoints[0][0][i]*y, keypoints[0][0][i+1]*x, keypoints[0][0][i+2]]))
+        shaped.append(np.array([keypoints[i]*y, keypoints[i+1]*x, keypoints[i+2]]))
 
     
     for kp in shaped:
@@ -96,7 +104,7 @@ def draw_keypoints(frame, keypoints, confidence_threshold):  # keypoints: (1x6x5
         if kp_conf > confidence_threshold:
             cv2.circle(frame, (int(kx), int(ky)), 2, (0,255,0), -1) 
 
-# 4. Draw Edges function
+# 5. Draw Edges function
 EDGES = {
     (0, 1): 'm',
     (0, 2): 'c',
@@ -122,7 +130,7 @@ def draw_connections(frame, keypoints, edges, confidence_threshold):
     y, x, c = frame.shape
     shaped = []
     for i in range(0,55-5+1,3):
-        shaped.append(np.array([keypoints[0][0][i]*y, keypoints[0][0][i+1]*x, keypoints[0][0][i+2]]))
+        shaped.append(np.array([keypoints[i]*y, keypoints[i+1]*x, keypoints[i+2]]))
     
     for edge, color in edges.items():
         p1, p2 = edge
